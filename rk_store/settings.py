@@ -285,6 +285,7 @@ APPINSIGHTS_CONNECTION_STRING = get_secret(
 
 # Application Insights logging only enabled in production (not DEBUG)
 # Locally it conflicts with Django's autoreloader
+
 if APPINSIGHTS_CONNECTION_STRING and not DEBUG:
     LOGGING = {
         'version': 1,
@@ -303,6 +304,8 @@ if APPINSIGHTS_CONNECTION_STRING and not DEBUG:
             'level': 'INFO',
         },
     }
+    # Add OpenCensus middleware for request tracking
+    MIDDLEWARE.insert(0, 'opencensus.ext.django.config.OpenCensusConfig')
 else:
     LOGGING = {
         'version': 1,
@@ -316,6 +319,16 @@ else:
         },
     }
 
+    # OpenCensus — Application Insights request tracking
+if APPINSIGHTS_CONNECTION_STRING and not DEBUG:
+    OPENCENSUS = {
+        'TRACE': {
+            'SAMPLER': 'opencensus.trace.samplers.ProbabilitySampler(rate=1)',
+            'EXPORTER': f'''opencensus.ext.azure.trace_exporter.AzureExporter(
+                connection_string="{APPINSIGHTS_CONNECTION_STRING}"
+            )''',
+        }
+    }
 # ════════════════════════════════════════════════════════════════════════════
 # SECURITY HEADERS
 # ════════════════════════════════════════════════════════════════════════════
