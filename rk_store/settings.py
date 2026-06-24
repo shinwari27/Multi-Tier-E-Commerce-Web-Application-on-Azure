@@ -14,10 +14,34 @@ Architecture:
 import os
 import logging
 from pathlib import Path
+from decouple import AutoConfig
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 logger = logging.getLogger(__name__)
+
+# ════════════════════════════════════════════════════════════════════════════
+# .ENV LOADER — Local Development
+# Loads all values from .env file into os.environ so get_secret() fallback works.
+# On Azure App Service, values come from Environment Variables instead.
+# ════════════════════════════════════════════════════════════════════════════
+_env_file = BASE_DIR / '.env'
+if _env_file.exists():
+    _config = AutoConfig(search_path=BASE_DIR)
+    os.environ.setdefault('DEBUG',                       _config('DEBUG',                       default='False'))
+    os.environ.setdefault('KEY_VAULT_URI',               _config('KEY_VAULT_URI',               default=''))
+    os.environ.setdefault('ALLOWED_HOSTS',               _config('ALLOWED_HOSTS',               default='localhost,127.0.0.1'))
+    os.environ.setdefault('DB_SERVER',                   _config('DB_SERVER',                   default=''))
+    os.environ.setdefault('DB_NAME',                     _config('DB_NAME',                     default=''))
+    os.environ.setdefault('DB_USERNAME',                 _config('DB_USERNAME',                 default=''))
+    os.environ.setdefault('DB_PASSWORD',                 _config('DB_PASSWORD',                 default=''))
+    os.environ.setdefault('ACS_EMAIL_CONNECTION_STR',    _config('ACS_EMAIL_CONNECTION_STR',    default=''))
+    os.environ.setdefault('ACS_SMS_CONNECTION_STR',      _config('ACS_SMS_CONNECTION_STR',      default=''))
+    os.environ.setdefault('ACS_SENDER_EMAIL',            _config('ACS_SENDER_EMAIL',            default=''))
+    os.environ.setdefault('ACS_SENDER_PHONE',            _config('ACS_SENDER_PHONE',            default=''))
+    os.environ.setdefault('DJANGO_SECRET_KEY',           _config('DJANGO_SECRET_KEY',           default=''))
+    os.environ.setdefault('APPINSIGHTS_CONNECTION_STR',  _config('APPINSIGHTS_CONNECTION_STR',  default=''))
+    os.environ.setdefault('CORS_ALLOWED_ORIGINS',        _config('CORS_ALLOWED_ORIGINS',        default=''))
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -158,8 +182,6 @@ WSGI_APPLICATION = 'rk_store.wsgi.application'
 # ════════════════════════════════════════════════════════════════════════════
 # DATABASE — Azure SQL (via Key Vault)
 # ════════════════════════════════════════════════════════════════════════════
-# Requires: ODBC Driver 18 for SQL Server installed on the App Service
-# Install on App Service via startup script or custom Docker image.
 
 DATABASES = {
     'default': {
@@ -167,7 +189,7 @@ DATABASES = {
         'NAME':     get_secret('db-name'),
         'USER':     get_secret('db-username'),
         'PASSWORD': get_secret('db-password'),
-        'HOST':     get_secret('db-server'),   # e.g. rk-store-sql.database.windows.net
+        'HOST':     get_secret('db-server'),
         'PORT':     '1433',
         'OPTIONS': {
             'driver': 'ODBC Driver 18 for SQL Server',
@@ -204,22 +226,18 @@ USE_TZ        = True
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# STATIC FILES — WhiteNoise (serves frontend from App Service)
+# STATIC FILES — WhiteNoise
 # ════════════════════════════════════════════════════════════════════════════
 
 STATIC_URL  = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-
-# CompressedManifestStaticFilesStorage adds cache-busting hashes
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# CORS — Allow frontend to call API
+# CORS
 # ════════════════════════════════════════════════════════════════════════════
-# Add your App Service URL to CORS_ALLOWED_ORIGINS env var in production
-# e.g. https://rk-store.azurewebsites.net
 
 _cors_origins = os.environ.get(
     'CORS_ALLOWED_ORIGINS',
@@ -250,21 +268,24 @@ REST_FRAMEWORK = {
 # AZURE COMMUNICATION SERVICES — Notifications (Stage 6)
 # ════════════════════════════════════════════════════════════════════════════
 
-ACS_EMAIL_CONNECTION_STRING = get_secret('acs-email-connection-str')
-ACS_SMS_CONNECTION_STRING   = get_secret('acs-sms-connection-str')
-ACS_SENDER_EMAIL            = get_secret('acs-sender-email')
-ACS_SENDER_PHONE            = get_secret('acs-sender-phone')
+ACS_EMAIL_CONNECTION_STRING = get_secret('acs-email-connection-str', fallback=os.environ.get('ACS_EMAIL_CONNECTION_STR', ''))
+ACS_SMS_CONNECTION_STRING   = get_secret('acs-sms-connection-str',   fallback=os.environ.get('ACS_SMS_CONNECTION_STR',   ''))
+ACS_SENDER_EMAIL            = get_secret('acs-sender-email',          fallback=os.environ.get('ACS_SENDER_EMAIL',         ''))
+ACS_SENDER_PHONE            = get_secret('acs-sender-phone',          fallback=os.environ.get('ACS_SENDER_PHONE',         ''))
 
 
 # ════════════════════════════════════════════════════════════════════════════
 # APPLICATION INSIGHTS — Telemetry (Stage 9)
 # ════════════════════════════════════════════════════════════════════════════
 
-APPINSIGHTS_CONNECTION_STRING = get_secret('appinsights-connection-str')
+APPINSIGHTS_CONNECTION_STRING = get_secret(
+    'appinsights-connection-str',
+    fallback=os.environ.get('APPINSIGHTS_CONNECTION_STR', '')
+)
 
-# Wire Django logging to Application Insights when connection string is set
-if APPINSIGHTS_CONNECTION_STRING:
-    from opencensus.ext.azure.log_exporter import AzureLogHandler
+# Application Insights logging only enabled in production (not DEBUG)
+# Locally it conflicts with Django's autoreloader
+if APPINSIGHTS_CONNECTION_STRING and not DEBUG:
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -295,24 +316,23 @@ else:
         },
     }
 
-
 # ════════════════════════════════════════════════════════════════════════════
-# SECURITY HEADERS (enforced in production, skipped in DEBUG)
+# SECURITY HEADERS
 # ════════════════════════════════════════════════════════════════════════════
 
 if not DEBUG:
     # Azure App Service handles HTTPS termination
-    # so we tell Django not to redirect
-    SECURE_SSL_REDIRECT              = False
-    SECURE_PROXY_SSL_HEADER          = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_HSTS_SECONDS              = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS   = True
-    SECURE_HSTS_PRELOAD              = True
-    SECURE_BROWSER_XSS_FILTER        = True
-    SECURE_CONTENT_TYPE_NOSNIFF      = True
-    SESSION_COOKIE_SECURE            = True
-    CSRF_COOKIE_SECURE               = True
-    X_FRAME_OPTIONS                  = 'DENY'
+    # Django must NOT redirect or it causes infinite loop
+    SECURE_SSL_REDIRECT             = False
+    SECURE_PROXY_SSL_HEADER         = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS             = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS  = True
+    SECURE_HSTS_PRELOAD             = True
+    SECURE_BROWSER_XSS_FILTER       = True
+    SECURE_CONTENT_TYPE_NOSNIFF     = True
+    SESSION_COOKIE_SECURE           = True
+    CSRF_COOKIE_SECURE              = True
+    X_FRAME_OPTIONS                 = 'DENY'
 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
