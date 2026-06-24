@@ -10,12 +10,22 @@
 
 ---
 
+## 🎬 Demo Video
+
+[![RK Store Demo Video](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-FF0000?style=for-the-badge&logo=youtube)](https://youtu.be/rYZhnTK6s0o)
+
+> Click the badge above to watch the full project demo on YouTube.
+
+---
+
 ## 🌐 Live Demo
 
 | Resource | URL |
 |---|---|
+| **🎬 Demo Video** | [Watch on YouTube](https://youtu.be/rYZhnTK6s0o) |
 | **RK Store (via Front Door)** | `https://rkstore-endpoint.azurefd.net` |
 | **RK Store (App Service)** | `https://app-rkstore-dev-afbyefhngwhsgue0.canadacentral-01.azurewebsites.net` |
+| **GitHub Repository** | [Multi-Tier-E-Commerce-Web-Application-on-Azure](https://github.com/shinwari27/Multi-Tier-E-Commerce-Web-Application-on-Azure) |
 | **Admin Panel** | `/admin/` |
 | **API — Products** | `/api/products/` |
 | **API — Orders** | `/api/orders/` |
@@ -284,6 +294,8 @@ Test 3 passed with zero errors after fixing the Application Insights middleware 
 | **Course** | Cloud Computing Capstone |
 | **Student** | Hikmatullah Shinwari |
 | **GitHub** | [@shinwari27](https://github.com/shinwari27) |
+| **Repository** | [Multi-Tier-E-Commerce-Web-Application-on-Azure](https://github.com/shinwari27/Multi-Tier-E-Commerce-Web-Application-on-Azure) |
+| **Demo Video** | [Watch on YouTube](https://youtu.be/rYZhnTK6s0o) |
 
 ---
 
